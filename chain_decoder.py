@@ -53,17 +53,20 @@ def decode(log: dict):
         "maker": maker_id,
         "taker": taker_id,
         "side": "BUY" if side == 0 else "SELL",
-        "token_id": str(token_id),   # too big for normal int columns → keep as string
+        "token_id": str(token_id), 
         "shares": shares,
         "usdc": usdc,
         "price": share_price,
         "fee": fees,
     }
 
-def static_preprocess_orders(orders: pd.DataFrame): 
+def check_matching(orders: pd.DataFrame): 
+    """Checks if the amount filled by the maker matches the one filled by taker within each txn"""
     orders["is_taker_order"] = orders["taker"].isin(EXCHANGES_LOWER)
-    orders.groupby(["tx_hash", "is_taker_order"])['shares'].sum()
-    return orders.head()
+    check = orders.groupby(["tx_hash", "is_taker_order"])['shares'].sum().unstack()
+    check["taker_maker_match"] = abs(check[True] - check[False]) <= 1e-6
+    return check
+
 
 # --- RPC Endpoint call 
 def rpc(method, params=[]):
@@ -75,11 +78,21 @@ def rpc(method, params=[]):
 
 latest_block = int(rpc("eth_blockNumber"), 16)
 logs = rpc("eth_getLogs", 
-           [{"fromBlock": hex(latest_block - 2),
+           [{"fromBlock": hex(latest_block - 9),
              "toBlock": hex(latest_block),
              "address": EXCHANGES,
 }])
 
-orders = [order for order in (decode(log) for log in logs) if order is not None]
-orders_df = pd.DataFrame(orders)
-print(static_preprocess_orders(orders_df))
+
+""" ----------------------------------------------------------------------------------
+Match confirmation Script : 
+In every transaction, the taker’s order equals the sum of its maker pieces, 
+so crediting only the maker field never double counts.
+"""
+# orders = [order for order in (decode(log) for log in logs) if order is not None]
+# orders_df = pd.DataFrame(orders)
+# check_orders = check_matching(orders_df)
+# print(len(check_orders))
+# print(check_orders["taker_maker_match"].mean())
+# ----------------------------------------------------------------------------------
+
