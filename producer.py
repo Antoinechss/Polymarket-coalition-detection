@@ -10,6 +10,7 @@ producer = KafkaProducer(bootstrap_servers="localhost:9092", value_serializer=st
 
 SAFETY_GAP = 5 # Stay 5 blocks behind the head to avoid reorged blocks 
 SLEEP = 20
+MAX_LAG = 1000
 
 head = int(rpc("eth_blockNumber"), 16) - SAFETY_GAP
 
@@ -21,6 +22,13 @@ else:
 
 while True: 
     head = int(rpc("eth_blockNumber"), 16) - SAFETY_GAP
+
+    lag = head - cursor
+    if lag > MAX_LAG:
+        skipped_from, skipped_to = cursor + 1, head - MAX_LAG
+        print(f"Too many blocks behind: skipping blocks")
+        cursor = head - MAX_LAG
+
     while cursor < head:
         to_block = min(cursor + 10, head)
         batch_logs = rpc("eth_getLogs",
