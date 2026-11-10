@@ -1,4 +1,5 @@
 import requests 
+import pandas as pd 
 
 ENDPOINT_URL = 'https://polygon-mainnet.g.alchemy.com/v2/alch_AeMPX8j4XsYFoHN43BEKh'
 
@@ -6,11 +7,12 @@ EXCHANGES = ["0xE111180000d2663C0091e4f400237545B87B996B", # CTF
              "0xe2222d279d744050d28e00520010520000310F59", # Neg Risk 
              "0xe3333700cA9d93003F00f0F71f8515005F6c00Aa"  # V2
              ] 
+EXCHANGES_LOWER = [a.lower() for a in EXCHANGES]
 
 ORDER_FILLED_HASH = "0xd543adfd945773f1a62f74f0ee55a5e3b9b1a28262980ba90b1a89f2ea84d8ee"
 
 
-def translate_log(log: dict): 
+def decode(log: dict): 
 
     # --- Filter on orders filled with 4 topics 
     if log['topics'][0] != ORDER_FILLED_HASH: 
@@ -58,6 +60,11 @@ def translate_log(log: dict):
         "fee": fees,
     }
 
+def static_preprocess_orders(orders: pd.DataFrame): 
+    orders["is_taker_order"] = orders["taker"].isin(EXCHANGES_LOWER)
+    orders.groupby(["tx_hash", "is_taker_order"])['shares'].sum()
+    return orders.head()
+
 # --- RPC Endpoint call 
 def rpc(method, params=[]):
     r = requests.post(ENDPOINT_URL, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
@@ -73,11 +80,6 @@ logs = rpc("eth_getLogs",
              "address": EXCHANGES,
 }])
 
-print(len(logs), "events")
-for log in logs: 
-    translation = translate_log(log)
-    if translation is not None:
-        print(translation)
-
-
-
+orders = [order for order in (decode(log) for log in logs) if order is not None]
+orders_df = pd.DataFrame(orders)
+print(static_preprocess_orders(orders_df))
