@@ -7,15 +7,17 @@ import statistics
 model = HalfSpaceTree() # Model choice
 detector = anomaly.QuantileFilter(model, q=0.999)
 
-def to_features(row: dict): 
-    """Subselection of features (excl maker and token id)"""
+def to_features(row: dict):
+    """Buy-side features of one (outcome, wallet) pair, scaled for the model"""
+    net = row["net_shares"]
+    pp = row["potential_profit"]
     return {
-        "total_usdc": math.log1p(row["total_usdc"]),
-        "total_shares": math.log1p(row["total_shares"]),
-        "n_trades": math.log1p(row["n_trades"]),
-        "avg_usdc": math.log1p(row["avg_usdc"]),
-        "buy_ratio": row.get("buy_ratio") if row.get("buy_ratio") is not None else 0.5,
-        "net_shares": math.copysign(math.log1p(abs(row["net_shares"])), row["net_shares"])
+        "buy_usdc":      math.log1p(row["buy_usdc"]),
+        "n_buys":        math.log1p(row["n_buys"]),
+        "avg_buy_usdc":  math.log1p(row["avg_buy_usdc"]),
+        "net_shares":    math.copysign(math.log1p(abs(net)), net),   # can be < 0 if it sold more than it bought
+        "avg_buy_price": row["avg_buy_price"],                       # already in [0, 1]: no log
+        "potential_profit" :math.copysign(math.log1p(abs(pp)), pp)
     }
 
 consumer = KafkaConsumer("features", bootstrap_servers="localhost:9092",
@@ -52,8 +54,9 @@ for msg in consumer:
         top = sorted(alerts.items(), key=lambda kv: kv[1][0], reverse=True)[:10]
         for (token, maker), (s, r) in top:
             print(f"{s:.3f}  {maker[:10]}…  token {token[:10]}…  "
-                  f"${r['total_usdc']:>10,.0f}  {r['n_trades']:>5} trades  "
-                  f"{r['total_shares']:>10,.0f} shares  buy={r.get('buy_ratio', 0.5):.2f}")
+                f"${r['buy_usdc']:>10,.0f} bought  {r['n_buys']:>5} buys  "
+                f"@ {r['avg_buy_price']:.3f}  holds {r['net_shares']:>10,.0f} shares  "
+                f" potential profit $ {r['potential_profit']:.3f} ")
 
         if DEBUG:
             scores = list(latest.values())
