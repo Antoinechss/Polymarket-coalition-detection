@@ -34,6 +34,7 @@ raw = (spark.readStream
 
 # --- Build fixed SCHEMA architecture and format (key, value) messages accordingly 
 FILL_SCHEMA = StructType([
+    StructField("ts", LongType()), 
     StructField("tx_hash", StringType()),
     StructField("log_index", IntegerType()),
     StructField("block", LongType()),
@@ -48,9 +49,11 @@ FILL_SCHEMA = StructType([
     StructField("fee", DoubleType()), 
 ])
 
-fills = (raw.select(from_json(col("value").cast("string"),      # Bytes -> JSON text
-                       FILL_SCHEMA).alias("f"))                 # JSON text -> struct column f
-                       .select("f.*"))                          # Unpacks structure f into column 
+fills = (raw.select(from_json(col("value").cast("string"),         # Bytes -> JSON text
+                       FILL_SCHEMA).alias("f"))                    # JSON text -> struct column f
+                       .select("f.*"))                             # Unpacks structure f into column 
+fills = (fills.withColumn("event_time", col("ts").cast("timestamp")) # Convert LongType timestamp into actual timestamp
+                         .filter(col("event_time").isNotNull()))
 
 
 # --- Display in console 

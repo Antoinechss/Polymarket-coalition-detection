@@ -44,6 +44,7 @@ def decode(log: dict):
     share_price = usdc / shares
 
     return {
+        "ts": int(log["blockTimestamp"], 16), 
         "tx_hash": log["transactionHash"],
         "log_index": int(log["logIndex"], 16),
         "block": int(log["blockNumber"], 16),
