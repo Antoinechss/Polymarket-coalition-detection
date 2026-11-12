@@ -30,13 +30,18 @@ features = fills.groupBy("token_id", "maker").agg(
     ).alias(
         "net_shares"
     ),  # bought shares - sold shares
-).filter(F.col("n_trades") > 1)
-
-# --- Display in console
-query = (
-    features.writeStream.outputMode("update")
-    .format("console")
-    .option("truncate", False)
-    .start()
 )
+
+# --- Send features to Kafka topic "features"
+query = (features
+    .select(F.col("token_id").alias("key"),
+            F.to_json(F.struct("*")).alias("value"))     # row → JSON text, the reverse of from_json
+    .writeStream
+    .format("kafka")
+    .option("kafka.bootstrap.servers", "localhost:9092")
+    .option("topic", "features")
+    .option("checkpointLocation", "anomaly_detection/state/features_ckpt")   # Spark's own cursor.txt
+    .outputMode("update")
+    .start())
+
 query.awaitTermination()
