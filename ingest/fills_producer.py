@@ -3,19 +3,21 @@
 import json, time
 from pathlib import Path
 from kafka import KafkaProducer
-from chain_decoder import decode, rpc
-from params import EXCHANGES
+from ingest.decoders.orders_filled import decode
+from common.rpc import rpc
+from common.params import EXCHANGES
 
 producer = KafkaProducer(bootstrap_servers="localhost:9092", value_serializer=str.encode)
 
 SAFETY_GAP = 5 # Stay 5 blocks behind the head to avoid reorged blocks 
 SLEEP = 20
 MAX_LAG = 1000
+CURSOR_PATH = Path(__file__).parent / "state" / "cursor.txt"
 
 head = int(rpc("eth_blockNumber"), 16) - SAFETY_GAP
 
-if Path("cursor.txt").exists(): 
-    with open("cursor.txt") as c: 
+if CURSOR_PATH.exists():
+    with open(CURSOR_PATH) as c:
         cursor = int(c.read())
 else: 
     cursor = head - 50
@@ -48,7 +50,7 @@ while True:
         producer.flush()
 
         cursor = to_block
-        with open("cursor.txt", "w") as c: 
+        with open(CURSOR_PATH, "w") as c:
             c.write(str(cursor))
         
         

@@ -1,14 +1,4 @@
-import requests 
-import pandas as pd 
-from params import ENDPOINT_URL, EXCHANGES, EXCHANGES_LOWER, ORDER_FILLED_HASH
-
-# --- RPC Endpoint call 
-def rpc(method, params=[]):
-    r = requests.post(ENDPOINT_URL, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
-    response = r.json()
-    if "error" in response: 
-        raise RuntimeError(response['error'])
-    return response['result']
+from common.params import ORDER_FILLED_HASH
 
 def decode(log: dict): 
 
@@ -58,10 +48,3 @@ def decode(log: dict):
         "price": share_price,
         "fee": fees,
     }
-
-def check_matching(orders: pd.DataFrame): 
-    """Checks if the amount filled by the maker matches the one filled by taker within each txn"""
-    orders["is_taker_order"] = orders["taker"].isin(EXCHANGES_LOWER)
-    check = orders.groupby(["tx_hash", "is_taker_order"])['shares'].sum().unstack()
-    check["taker_maker_match"] = abs(check[True] - check[False]) <= 1e-6
-    return check
