@@ -3,6 +3,7 @@ import json, math
 from river import anomaly
 from anomaly_detection.models import HalfSpaceTree
 import statistics
+from common.markets import token_details
 
 model = HalfSpaceTree() # Model choice
 detector = anomaly.QuantileFilter(model, q=0.999)
@@ -52,11 +53,15 @@ for msg in consumer:
     if i % PRINT_EVERY == 0:
         print(f"\n--- {i} msgs | {len(latest)} pairs scored | {len(alerts)} flagged ---")
         top = sorted(alerts.items(), key=lambda kv: kv[1][0], reverse=True)[:10]
+        info = token_details([token for (token, _), _ in top])
+
         for (token, maker), (s, r) in top:
-            print(f"{s:.3f}  {maker[:10]}…  token {token[:10]}…  "
-                f"${r['buy_usdc']:>10,.0f} bought  {r['n_buys']:>5} buys  "
-                f"@ {r['avg_buy_price']:.3f}  holds {r['net_shares']:>10,.0f} shares  "
-                f" potential profit $ {r['potential_profit']:.3f} ")
+            m = info[token]
+            question = (m["title"] or f"unknown token")[:60]
+
+            print(f"{s:.3f}  {maker[:10]}…  {question}  → {m['outcome']}\n"
+                  f"       ${r['buy_usdc']:>10,.0f} bought  @ {r['avg_buy_price']:.3f}  "
+                  f"holds {r['net_shares']:>10,.0f}  potential profit ${r['potential_profit']:,.0f}")
 
         if DEBUG:
             scores = list(latest.values())

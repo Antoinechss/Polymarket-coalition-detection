@@ -6,9 +6,9 @@ lsof -i :9092                      # must be empty (no Homebrew Kafka)
 docker start kafka
 
 # --- Pipeline stages 
-python -m ingest.fills_producer              # chain → polygon-orders
-python -m anomaly_detection.spark_features   # polygon-orders → features
-python -m anomaly_detection.anomaly_scorer   # features → flagged wallets
+polymarket-coalition-venv/bin/python -m ingest.fills_producer             # chain → polygon-orders
+polymarket-coalition-venv/bin/python -m anomaly_detection.spark_features   # polygon-orders → features
+polymarket-coalition-venv/bin/python -m anomaly_detection.anomaly_scorer   # features → flagged wallets
 
 # --- Check topics 
 # fills 

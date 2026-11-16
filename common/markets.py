@@ -56,8 +56,3 @@ def token_details(token_ids: list[str]) -> dict[str, dict]:
         _fetch_batch(to_fetch[i:i + BATCH])
     return {t: _CACHE[t] for t in token_ids}
 
-
-if __name__ == '__main__': 
-    test_token = "33339798372916037220786136133406478491116150628220441951753426683441228279665"
-    print(token_details([test_token, "123"]))   # real question + placeholder
-    print(token_details([test_token]))            # second call: from the cache, no request
