@@ -30,6 +30,7 @@ venv/
 *.parquet
 *.csv
 data/
+analysis/data/
 
 # ── OS / editor ────────────────────────────────────────
 .DS_Store
